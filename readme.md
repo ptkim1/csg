@@ -9,7 +9,7 @@ Given a number of attendees, who may be subdivided into groups, and a fixed seat
 seating_generator.py will create a Seating object 
 * with precisely specified dimensions and aisles
 * randomly according to reasonable constraints otherwise
-* seating will be probably a dict containing a boolean array and some meta-information
+* seating is an object with an array representing the seating, and variables containing some meta-information
 
 attendees_generator.py will take params from a seating object and generate groups of people, according to certain parameters (max and min number of people allowed in the seating)
 * probably a list of ints, each int being the number of people in the group
@@ -22,3 +22,6 @@ visualizer.py will display the seating arrangement somehow
 
 main.py will start the run, from either a json with parameters or user inputted parameters
 
+TODO:
+
+Comments and docstrings

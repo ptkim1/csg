@@ -2,6 +2,7 @@ import numpy as np
 import json
 import pickle
 
+# whats the order to put regular vs class versus getter methods
 
 class BaseSeating:
     def __init__(self, totalseats: int, seating: np.ndarray):
@@ -56,12 +57,16 @@ class BaseSeating:
     def to_pickle(self, name):
         pickle.dump(open('seatings/{}'.format(name), 'wb'))
 
-class SeatingFromJson(BaseSeating):
-    def __init__(self, path):
-        inputs = json.load(open('seating_settings/{}'.format(path)))
-        if not self._validate(inputs):
-            # raise error
-            print('error')
+    @classmethod
+    def from_pickle(cls, name):
+        return pickle.load(open('seatings/{}'.format(name), 'rb'))
+
+    @classmethod
+    def from_json(cls, name):
+        inputs = json.load(open('saved/seating_settings/{}'.format(name)))
+        # if not self._validate(inputs):
+        #     # raise error
+        #     print('error')
 
         seating = np.zeros(inputs['dimensions'])
         for row in inputs['emptyrows']:
@@ -72,12 +77,13 @@ class SeatingFromJson(BaseSeating):
             seating[box[0] : box[1], box[2] : box[3]] = -1
             # I need to validate this to make sure it works
         for singlegap in inputs['gaps']:
-            seating[singlegap] = -1
+            seating[singlegap[0], singlegap[1]] = -1
 
         totalseats = inputs['dimensions'][0] * inputs['dimensions'][1] + np.sum(seating)
         # add here bc non-seats are -1. 
 
-        super().__init__(totalseats, seating)
+        return cls(totalseats, seating)
+    
 
     def _validate(self, parameters):
         if parameters['max_x'] <= 0 or parameters['max_y'] <= 0:
