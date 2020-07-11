@@ -3,11 +3,13 @@ import json
 from dotted_dict import DottedDict
 import types
 import pickle
+import copy
 
 
 class BaseAttendees:
 
     def __init__(self, groups, distribution):
+        groups.sort()
         self.groups = groups
         self.init_groups = groups
         self.init_count = sum(groups)
@@ -94,5 +96,20 @@ class BaseAttendees:
     def from_pickle(self, name):
         return pickle.load(open('saved/objs/{}'.format(name), 'rb'))
 
+    def pop_largest(self):
+        return self.groups.pop(-1)
+    
+    def pop_smallest(self):
+        return self.groups.pop(0)
+
+    def iter_ascending(self):
+        return (p for p in self.groups)
+    
+    def iter_descending(self):
+        groups_descending = copy.copy(self.groups)
+        groups_descending.sort(reverse=True)
+        return (p for p in groups_descending)
+
+    
     
 

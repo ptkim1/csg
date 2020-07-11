@@ -83,12 +83,28 @@ class BaseSeating:
         # add here bc non-seats are -1. 
 
         return cls(totalseats, seating)
+
+    @classmethod
+    def from_regular_blocks(cls, block_dims, tiling):
+        xdim = (block_dims[0] * tiling[0]) + (tiling[0] - 1)
+        ydim = (block_dims[1] * tiling[1]) + (tiling[1] - 1)
+
+        xaisles = list(range(block_dims[0], xdim-block_dims, block_dims[0]+1))
+        yaisles = list(range(block_dims[1], ydim-block_dims, block_dims[1]+1))
+
+        total_seats = (block_dims[0] * block_dims[1]) * (tiling[0] * tiling[1])
+        seating = np.zeros((xdim, ydim))
+        seating[xaisles, :] = -1
+        seating[:, yaisles] = -1
+
+        return cls(total_seats, seating)
+
     
 
     def _validate(self, parameters):
         if parameters['max_x'] <= 0 or parameters['max_y'] <= 0:
             return False
-         
+    
 
 
 # class SeatingFromTicketMaster
