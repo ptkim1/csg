@@ -1,0 +1,7 @@
+{
+    "dimensions": [15, 15],
+    "emptyrows": [2, 13],
+    "emptycols": [6, 8],
+    "emptyboxes": [[4, 7, 4, 7]],
+    "gaps": [[12, 11], [9, 7]]
+}
