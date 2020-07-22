@@ -5,6 +5,8 @@ import numpy as np
 import random
 from heapq import heappush, heappop
 import copy
+from scipy.spatial.distance import pdist, squareform
+
 
 class BaseSolver:
     def __init__(self, seating: BaseSeating, attendees: BaseAttendees):
@@ -188,11 +190,22 @@ class PriorityMaxSolver(BaseSolver):
         # get all seats
         # get empty seats
         # get pdistmat
-        # for empty seats, update invdistmap and coordheap
-        all_seats = 
+        # for empty seats, update invdistmap
+        all_seats = np.where(self.seating.seating != -1)
+        all_seats = [[x, y] for x, y in zip(all_seats[0], all_seats[1])]
 
         free_seats = np.where(self.seating.seating == 0)
         free_seats = [[x, y] for x, y in zip(free_seats[0], free_seats[1])]
+
+        invdmat = squareform(pdist(all_seats)) * -1
+
+        invdmat 
+
+
+
+
+
+
 
 
 
