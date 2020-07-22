@@ -2,6 +2,7 @@ import numpy as np
 import json
 import pickle
 
+
 # whats the order to put regular vs class versus getter methods
 
 class BaseSeating:
