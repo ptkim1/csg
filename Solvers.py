@@ -214,4 +214,3 @@ class PriorityMaxSolver(BaseSolver):
         # group of 9: 3-3-3 only!
         # group of 10: 4-3-3- or 3-4-3 or 3-3-4
 
-    
