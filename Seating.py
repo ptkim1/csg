@@ -6,11 +6,15 @@ import pickle
 
 class BaseSeating:
     def __init__(self, totalseats: int, seating: np.ndarray):
-        # to docstring: add that -1 means no seat, 0 means empty seat, 1 means filled seat
+        # to docstring: add that -1 means no seat, 0 means empty seat, any other number means filled seat
         self.totalseats = totalseats
         self.seating = seating
         self.unfilledseats = totalseats
         self.max_x, self.max_y = seating.shape
+        self.emptyseatcoords = set((x, y) for x, y in zip(np.where(self.seating == 0)[0],
+                                                       np.where(self.seating == 0)[1]
+                                                       )
+                                )
 
     def nseats(self):
         return self.totalseats
@@ -21,38 +25,42 @@ class BaseSeating:
     def getseating(self):
         return self.seating
 
-    def _valid(self, x, y):
-        if x >= self.max_x or y >= self.max_y or x < 0 or y < 0:
-            # raise an error - index out of bounds
-            print('index out of bounds') 
+    def isemptyseat(self, x, y):
+        if (x, y) in self.emptyseatcoords:
+            return True
+        else:
             return False
+
+    def areemptyseats(self, coordlist):
+        # if coordlist is empty return an error
+        for coord in coordlist:
+            if not self.isemptyseat(coord[0], coord[1]):
+                return False
         return True
 
-    def add_person(self, x, y):
-        if self.unfilledseats == self.totalseats:
-            print('cannot add, seating is full')
-        elif not self._valid(x, y):
-            print('we need an error here, saying we are out of bounds')
-        elif not self.seating[x, y]:
-            self.seating[x, y] = 1
-            self.unfilledseats -= 1
-        elif self.seating[x, y] == -1:
-            # raise an error - no seat here
-            print('we need an error here later, saying theres no seat')
-        elif self.seating[x, y] == 1:
-            # raise an error - seat already filled
-            print('seat already filled')
+    def add_person(self, x, y, groupid):
+        if not self.isemptyseat(x, y):
+            # raise an error
+            return False
         else:
-            print('this case should not be possible')
+            self.seating[x, y] = groupid
+            self.unfilledseats -= 1
+            self.emptyseatcoords.remove((x, y))
+            return True
+
+    def add_many(self, coordlist, groupid):
+        for coord in coordlist:
+            self.add_person(coord[0], coord[1], groupid)
+
 
     def move_person(self, init_x, init_y, new_x, new_y):
-        if not self._valid(init_x, init_y) or not self._valid(new_x, new_y):
-            print('index out of bounds')
-        elif self.seating[init_x, init_y] == 1 and self.seating[new_x, new_y] == 0:
+        if self.seating[init_x, init_y] > 0 and self.seating[new_x, new_y] == 0:
+            self.seating[new_x, new_y] = self.seating[init_x, init_y]
             self.seating[init_x, init_y] = 0
-            self.seating[new_x, new_y] = 1
+            return True
         else:
             print('init seat empty or new seat full/invalid')
+            return False
 
     def to_pickle(self, name):
         pickle.dump(open('saved/objs/{}'.format(name), 'wb'))
@@ -70,9 +78,9 @@ class BaseSeating:
 
         seating = np.zeros(inputs['dimensions'])
         for row in inputs['emptyrows']:
-            seating[row, :] = -1
+            seating[:, row] = -1
         for column in inputs['emptycols']:
-            seating[:, column] = -1
+            seating[column, :] = -1
         for box in inputs['emptyboxes']:
             seating[box[0] : box[1], box[2] : box[3]] = -1
             # I need to validate this to make sure it works

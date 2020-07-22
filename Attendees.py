@@ -1,6 +1,5 @@
 import numpy as np
 import json
-from dotted_dict import DottedDict
 import types
 import pickle
 import copy
@@ -11,7 +10,7 @@ class BaseAttendees:
     def __init__(self, groups, distribution):
         groups.sort()
         self.groups = groups
-        self.init_groups = groups
+        self.init_groups = copy.copy(groups)
         self.init_count = sum(groups)
         self.generating_distribution = distribution
     
@@ -103,12 +102,22 @@ class BaseAttendees:
         return self.groups.pop(0)
 
     def iter_ascending(self):
-        return (p for p in self.groups)
+        groups_ascending = copy.copy(self.groups)
+        groups_ascending.sort()
+        return (p for p in groups_ascending)
     
     def iter_descending(self):
         groups_descending = copy.copy(self.groups)
         groups_descending.sort(reverse=True)
         return (p for p in groups_descending)
+
+    def check_complete(self):
+        if len(self.groups) == 0:
+            return True
+        else:
+            return False
+
+    
 
     
     

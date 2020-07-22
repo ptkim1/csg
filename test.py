@@ -1,12 +1,20 @@
 from Attendees import BaseAttendees
 from Seating import BaseSeating
+from Solvers import NaiveSolver
+from evaluate import evaluate
 
-seating = BaseSeating.from_regular_blocks((5, 5), (3, 3))
-attendees = BaseAttendees.from_uniform(seating.unfilled / 2, 6)
+seating = BaseSeating.from_json('testseating.json')
+attendees = BaseAttendees.from_uniform(seating.unfilledseats / 2, 4)
+solver = NaiveSolver(seating, attendees)
 
-solver = 
+print(seating.seating.T)
 
+solver.solve()
 
-print(seating)
-print(seating.seating)
+# need to make a function to display seatings in their proper transposed way
+print(seating.seating.T)
+print(evaluate(seating))
+
+with open('test_results.txt', 'w') as f:
+    f.write(str(seating.seating))
 
