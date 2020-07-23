@@ -3,7 +3,7 @@ from Attendees import BaseAttendees
 from abc import abstractmethod
 import numpy as np
 import random
-from heapq import heappush, heappop
+from heapq import heappush, heappop, heapify
 import copy
 from scipy.spatial.distance import pdist, squareform
 
@@ -70,6 +70,19 @@ class BaseSolver:
                 return True
         return False 
 
+    def _4_placement_valid_coords(self, x, y):
+        valid_rows = []
+        valid_boxes = []
+        for start_x in range(x, x-4):
+            if self._check_row(start_x, start_x+4, y):
+                valid_rows.append([(start_x, y), (start_x+1, y), (start_x+2, y), (start_x+3, y)])
+        
+        box_start_coords = [(x, y), (x-1, y), (x, y-1), (x-1, y-1)]
+        for start in box_start_coords:
+            x, y = start[0], start[1]
+            if self._check_box(x, y):
+                valid_boxes.append([(x, y), (x+1, y), (x, y+1), (x+1, y+1)])
+        return valid_rows, valid_boxes
     
        
 
@@ -152,33 +165,41 @@ class PriorityMaxSolver(BaseSolver):
     def solve(self):
         # step 1: get the allowed coordinates 
         self._heapify_coords()
-        self.invdist_map = copy.copy(self.seating.seating)
+        self.dist_map = copy.copy(self.seating.seating) # when placing an additional group member, we'll have to check for if it's a valid seat or not
         groupid = 0
 
         while not self.attendees.check_complete():
             curr = self.attendees.pop_largest()
             invdist, coords = heappop(self.coordheap)
             failed_seats = set()
+            to_push_end = []
             
             while not self._tryplacegroup(curr, coords[0], coords[1]):
                 failed_seats.add(coords)
                 if len(failed_seats) == len(self.seating.emptyseatcoords):
                     raise RuntimeError
                     # raise an error - no valid placements
-                _next = heappop(self.coordheap)
-                heappush(self.coordheap, (invdist, coords))
-                invdist, coords = _next[0], _next[1]
+                to_push_end.append((invdist, coords))
+                invdist, coords = heappop(self.coordheap)
             
             x, y = coords[0], coords[1]
 
-            if curr >= 1:
-                self.seating.add_person(x, y, groupid)
-                self._update_invdistmap()
-                
-
-
+            if curr == 2:
+                self.seating.add_person(x, y)
+                next_x, next_y = self._2_best(x, y)
+                self.seating.add_person(next_x, next_y, groupid)
+            elif curr == 3:
+                self.seating.add_person(x, y)
+                next_adds = self._3_best(x, y)
+                self.seating.add_many(next_adds, groupid)
+            elif curr == 4:
+                four_add = self._4_best(x, y)
+                self.seating.add_many(four_add, groupid)
             
-
+            
+            heap_updates = self._update_distmap()
+            self._update_coordheap(heap_updates, to_push_end)
+            groupid += 1
 
     def _heapify_coords(self):
         coordheap = []
@@ -186,28 +207,112 @@ class PriorityMaxSolver(BaseSolver):
             heappush(coordheap, (0, coord))
         self.coordheap = coordheap
 
-    def _update_invdistmap(self):
+    def _update_distmap(self):
         # get all seats
         # get empty seats
         # get pdistmat
         # for empty seats, update invdistmap
+        # return a dict of updates to be made to the coordheap
         all_seats = np.where(self.seating.seating != -1)
         all_seats = [[x, y] for x, y in zip(all_seats[0], all_seats[1])]
 
         free_seats = np.where(self.seating.seating == 0)
-        free_seats = [[x, y] for x, y in zip(free_seats[0], free_seats[1])]
+        free_seats = set([x, y] for x, y in zip(free_seats[0], free_seats[1]))
 
-        invdmat = squareform(pdist(all_seats)) * -1
+        dmat = squareform(pdist(all_seats))
 
-        invdmat 
+        coordheap_updates = {}
+
+        for seat, row in zip(all_seats, dmat):
+            if seat in free_seats:
+                x, y = seat[0], seat[1]
+                ranking = np.argsort(row)
+                for rank in ranking[1:]: # because 0th will be self
+                    if self.seating.isemptyseat(x, y):
+                        continue
+                    elif row[rank] == self.dist_map[x, y]:
+                        break
+                        # still the same seat is nearest
+                    else:
+                        self.dist_map[x, y] = row[rank]
+                        coordheap_updates[(x, y)] = row[rank]
+                        break
+                        # update the invdist_map
+                        # add to dict to update the coordheap
+                        # exit the loop
+        return coordheap_updates
+
+    def _update_coordheap(self, updates, to_push_end):
+        for i in range(len(self.coordheap)):
+            coords = self.coordheap[i][1]
+            if coords in updates.keys():
+                new_invdist = -1 * updates[coords]
+                self.coordheap[i] = (new_invdist, coords)
+        heapify(self.coordheap)
+
+        [heappush(self.coordheap, to_push) for to_push in to_push_end]
+
+    def _2_best(self, x, y):
+        if self.seating.isemptyseat(x+1, y) and not self.seating.isemptyseat(x-1, y):
+            return x+1, y
+        elif self.seating.isemptyseat(x-1, y) and not self.seating.isemptyseat(x+1, y):
+            return x-1, y
+        elif self.dist_map[x+1, y] > self.dist_map[x-1, y]:
+            return x+1, y
+        else: # self.dist_map[x-1, y] >= self.dist_map[x+1, y]
+            return x-1, y
+
+    def _3_best(self, x, y):
+        return_coords = []
+        if not self.seating.isemptyseat(x+1, y):
+            return_coords.extend([(x-1, y), (x-2, y)])
+        elif not self.seating.isemptyseat(x-1, y):
+            return_coords.extend([(x+1, y), (x+2, y)])
+        elif self.dist_map[x+1, y] > self.dist_map[x-1, y]:
+            return_coords.append((x+1, y))
+            if self.dist_map[x+2, y] > self.dist_map[x-1, y]:
+                return_coords.append((x+2, y))
+            else:
+                return_coords.append((x-1, y))
+        
+        elif self.dist_map[x-1, y] >= self.dist_map[x+1, y]:
+            return_coords.append((x-1, y))
+            if self.dist_map[x-2, y] > self.dist_map[x+1, y]:
+                return_coords.append((x-2, y))
+            else:
+                return_coords.append((x+1, y))
+
+        return return_coords
+
+    def get_avg_dist(self, coord_set):
+        dists = []
+        for coord in coord_set:
+            dists.append(self.dist_map[coord[0], coord[1]])
+        return np.mean(dists)
 
 
+    def _4_best(self, x, y):
+        valid_rows, valid_boxes = self._4_placement_valid_coords(x, y)
+        
+        if len(valid_rows) == 0:
+            box_means = [self.get_avg_dist(validbox) for validbox in valid_boxes]
+            best_box = np.argmin(box_means)
+            return valid_boxes[best_box]
+        elif len(valid_boxes) == 0:
+            row_means = [self.get_avg_dist(validrow) for validrow in valid_rows]
+            best_row = np.argmin(row_means)
+            return valid_rows[best_row]
+        else:
+            row_means = [self.get_avg_dist(validrow) for validrow in valid_rows]
+            box_means = [self.get_avg_dist(validbox) for validbox in valid_boxes]
 
+            best_row = np.argmin(row_means)
+            best_box = np.argmin(box_means)
 
-
-
-
-
+            if row_means[best_row] < box_means[best_box]:
+                return valid_rows[best_row]
+            else:
+                return valid_boxes[best_box]
 
     def _tryplacegroup(self, group, x, y):
         coords = random.choice(tuple(self.seating.emptyseatcoords))

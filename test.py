@@ -1,11 +1,11 @@
 from Attendees import BaseAttendees
 from Seating import BaseSeating
-from Solvers import NaiveSolver
+from Solvers import NaiveSolver, PriorityMaxSolver
 from evaluate import evaluate
 
 seating = BaseSeating.from_json('testseating.json')
 attendees = BaseAttendees.from_uniform(seating.unfilledseats / 2, 4)
-solver = NaiveSolver(seating, attendees)
+solver = PriorityMaxSolver(seating, attendees)
 
 print(seating.seating.T)
 
@@ -15,6 +15,6 @@ solver.solve()
 print(seating.seating.T)
 print(evaluate(seating))
 
-with open('test_results.txt', 'w') as f:
-    f.write(str(seating.seating))
+# with open('test_results.txt', 'w') as f:
+#     f.write(str(seating.seating))
 
