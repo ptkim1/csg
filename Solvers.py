@@ -40,15 +40,10 @@ class BaseSolver:
         return (self.seating.isemptyseat(x, y) and (self.seating.isemptyseat(x+1, y) or self.seating.isemptyseat(x-1, y)))
 
     def _3_check(self, x, y):
-        if not self.seating.isemptyseat(x, y):
-            return False
-        elif self.seating.isemptyseat(x+1, y):
-            if self.seating.isemptyseat(x-1, y) or self.seating.isemptyseat(x+2, y):
+        for start_x in range(x, x-3, -1):
+            if self._check_row(start_x, start_x+3, y):
                 return True
-        elif self.seating.isemptyseat(x-1, y) and self.seating.isemptyseat(x-2, y):
-            return True
-        else: 
-            return False
+        return False
 
     def _check_row(self, start_x, end_x, y):
         for i in range(start_x, end_x):
@@ -61,7 +56,7 @@ class BaseSolver:
         return self.seating.areemptyseats(box_coords)
         
     def _4_check(self, x, y):
-        for start_x in range(x, x-4):
+        for start_x in range(x, x-4, -1):
             if self._check_row(start_x, start_x+4, y):
                 return True
         box_start_coords = [(x, y), (x-1, y), (x, y-1), (x-1, y-1)]
@@ -73,7 +68,7 @@ class BaseSolver:
     def _4_placement_valid_coords(self, x, y):
         valid_rows = []
         valid_boxes = []
-        for start_x in range(x, x-4):
+        for start_x in range(x, x-4, -1):
             if self._check_row(start_x, start_x+4, y):
                 valid_rows.append([(start_x, y), (start_x+1, y), (start_x+2, y), (start_x+3, y)])
         
@@ -83,6 +78,13 @@ class BaseSolver:
             if self._check_box(x, y):
                 valid_boxes.append([(x, y), (x+1, y), (x, y+1), (x+1, y+1)])
         return valid_rows, valid_boxes
+
+    def _3_placement_valid_coords(self, x, y):
+        valid_rows = []
+        for start_x in range(x, x-3, -1):
+            if self._check_row(start_x, start_x+3, y):
+                valid_rows.append([(start_x, y), (start_x+1, y), (start_x+2, y)])
+        return valid_rows
     
        
 
@@ -104,16 +106,18 @@ class NaiveSolver(BaseSolver):
             
             x, y = coords[0], coords[1]
             # so we found a valid place to start.
-            if curr >= 1:
+            if curr == 1:
                 self.seating.add_person(x, y, groupid)
             if curr == 2:
                 # try to add a person to the left or right
+                self.seating.add_person(x, y, groupid)
                 if self.seating.isemptyseat(x+1, y):
                     self.seating.add_person(x+1, y, groupid)
                 else:
                     # must have been a free seat to the other side
                     self.seating.add_person(x-1, y, groupid)
             if curr == 3:
+                self.seating.add_person(x, y, groupid)
                 if self.seating.isemptyseat(x+1, y) and self.seating.isemptyseat(x+2, y):
                     self.seating.add_person(x+1, y, groupid)
                     self.seating.add_person(x+2, y, groupid)
@@ -133,14 +137,13 @@ class NaiveSolver(BaseSolver):
 
             
     def _tryplacegroup(self, group, x, y):
-        coords = random.choice(tuple(self.seating.emptyseatcoords))
-        if self._group_here_ok(group, coords[0], coords[1]):
+        if self._group_here_ok(group, x, y):
             return True
         else:
             return False
 
     def _4_place(self, x, y, groupid):
-        for start_x in range(x, x-4):
+        for start_x in range(x, x-4, -1):
             if self._check_row(start_x, start_x+4, y):
                 self.seating.add_many([(xcoord, ycoord) for xcoord, ycoord in zip(range(start_x, start_x+4), [y] * 4)], groupid)
                 return
@@ -181,7 +184,7 @@ class PriorityMaxSolver(BaseSolver):
                 if len(failed_seats) == len(self.seating.emptyseatcoords):
                     raise RuntimeError
                     # raise an error - no valid placements
-                to_push_end.append((invdist, coords))
+                to_push_end.append((coords))
                 invdist, coords = heappop(self.coordheap)
             
             x, y = coords[0], coords[1]
@@ -192,7 +195,6 @@ class PriorityMaxSolver(BaseSolver):
                 next_x, next_y = self._2_best(x, y)
                 self.seating.add_person(next_x, next_y, groupid)
             elif curr == 3:
-                self.seating.add_person(x, y, groupid)
                 next_adds = self._3_best(x, y)
                 self.seating.add_many(next_adds, groupid)
             elif curr == 4:
@@ -203,9 +205,6 @@ class PriorityMaxSolver(BaseSolver):
             heap_updates = self._update_distmap()
             self._update_coordheap(heap_updates, to_push_end)
             groupid += 1
-            print(groupid)
-            print(self.seating.seating.T)
-            # print(self.dist_map.T)
 
     def _heapify_coords(self):
         coordheap = []
@@ -256,7 +255,7 @@ class PriorityMaxSolver(BaseSolver):
                 self.coordheap[i] = (new_invdist, coords)
         heapify(self.coordheap)
 
-        [heappush(self.coordheap, to_push) for to_push in to_push_end]
+        [heappush(self.coordheap, (-1 * self.dist_map[coords[0], coords[1]], coords)) for coords in to_push_end]
 
     def _2_best(self, x, y):
         if self.seating.isemptyseat(x+1, y) and not self.seating.isemptyseat(x-1, y):
@@ -269,26 +268,10 @@ class PriorityMaxSolver(BaseSolver):
             return x-1, y
 
     def _3_best(self, x, y):
-        return_coords = []
-        if not self.seating.isemptyseat(x+1, y):
-            return_coords.extend([(x-1, y), (x-2, y)])
-        elif not self.seating.isemptyseat(x-1, y):
-            return_coords.extend([(x+1, y), (x+2, y)])
-        elif self.dist_map[x+1, y] > self.dist_map[x-1, y]:
-            return_coords.append((x+1, y))
-            if self.dist_map[x+2, y] > self.dist_map[x-1, y]:
-                return_coords.append((x+2, y))
-            else:
-                return_coords.append((x-1, y))
-        
-        elif self.dist_map[x-1, y] >= self.dist_map[x+1, y]:
-            return_coords.append((x-1, y))
-            if self.dist_map[x-2, y] > self.dist_map[x+1, y]:
-                return_coords.append((x-2, y))
-            else:
-                return_coords.append((x+1, y))
-
-        return return_coords
+        valid_rows = self._3_placement_valid_coords(x, y)
+        row_means = [self.get_avg_dist(validrow) for validrow in valid_rows]
+        best_row = np.argmin(row_means)
+        return valid_rows[best_row]
 
     def get_avg_dist(self, coord_set):
         dists = []
@@ -321,8 +304,7 @@ class PriorityMaxSolver(BaseSolver):
                 return valid_boxes[best_box]
 
     def _tryplacegroup(self, group, x, y):
-        coords = random.choice(tuple(self.seating.emptyseatcoords))
-        if self._group_here_ok(group, coords[0], coords[1]):
+        if self._group_here_ok(group, x, y):
             return True
         else:
             return False
