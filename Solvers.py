@@ -166,7 +166,7 @@ class PriorityMaxSolver(BaseSolver):
         # step 1: get the allowed coordinates 
         self._heapify_coords()
         self.dist_map = copy.copy(self.seating.seating) # when placing an additional group member, we'll have to check for if it's a valid seat or not
-        groupid = 0
+        groupid = 1
 
         while not self.attendees.check_complete():
             curr = self.attendees.pop_largest()
@@ -174,6 +174,8 @@ class PriorityMaxSolver(BaseSolver):
             failed_seats = set()
             to_push_end = []
             
+            # I think tryplacegroup is not working as intended
+            # also we need to update the coords that we save to push later in to_push_end
             while not self._tryplacegroup(curr, coords[0], coords[1]):
                 failed_seats.add(coords)
                 if len(failed_seats) == len(self.seating.emptyseatcoords):
@@ -183,13 +185,14 @@ class PriorityMaxSolver(BaseSolver):
                 invdist, coords = heappop(self.coordheap)
             
             x, y = coords[0], coords[1]
-
-            if curr == 2:
-                self.seating.add_person(x, y)
+            if curr == 1:
+                self.seating.add_person(x, y, groupid)
+            elif curr == 2:
+                self.seating.add_person(x, y, groupid)
                 next_x, next_y = self._2_best(x, y)
                 self.seating.add_person(next_x, next_y, groupid)
             elif curr == 3:
-                self.seating.add_person(x, y)
+                self.seating.add_person(x, y, groupid)
                 next_adds = self._3_best(x, y)
                 self.seating.add_many(next_adds, groupid)
             elif curr == 4:
@@ -200,6 +203,9 @@ class PriorityMaxSolver(BaseSolver):
             heap_updates = self._update_distmap()
             self._update_coordheap(heap_updates, to_push_end)
             groupid += 1
+            print(groupid)
+            print(self.seating.seating.T)
+            # print(self.dist_map.T)
 
     def _heapify_coords(self):
         coordheap = []
@@ -214,10 +220,10 @@ class PriorityMaxSolver(BaseSolver):
         # for empty seats, update invdistmap
         # return a dict of updates to be made to the coordheap
         all_seats = np.where(self.seating.seating != -1)
-        all_seats = [[x, y] for x, y in zip(all_seats[0], all_seats[1])]
+        all_seats = [(x, y) for x, y in zip(all_seats[0], all_seats[1])]
 
         free_seats = np.where(self.seating.seating == 0)
-        free_seats = set([x, y] for x, y in zip(free_seats[0], free_seats[1]))
+        free_seats = set((x, y) for x, y in zip(free_seats[0], free_seats[1]))
 
         dmat = squareform(pdist(all_seats))
 
@@ -228,7 +234,7 @@ class PriorityMaxSolver(BaseSolver):
                 x, y = seat[0], seat[1]
                 ranking = np.argsort(row)
                 for rank in ranking[1:]: # because 0th will be self
-                    if self.seating.isemptyseat(x, y):
+                    if self.seating.isemptyseat(all_seats[rank][0], all_seats[rank][1]):
                         continue
                     elif row[rank] == self.dist_map[x, y]:
                         break
