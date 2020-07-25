@@ -3,9 +3,9 @@ from Attendees import BaseAttendees
 from abc import abstractmethod
 import numpy as np
 import random
-from heapq import heappush, heappop, heapify
 import copy
 from scipy.spatial.distance import pdist, squareform
+from utils import MaxHeap
 
 
 class BaseSolver:
@@ -54,6 +54,10 @@ class BaseSolver:
     def _check_box(self, start_x, start_y):
         box_coords = [(start_x, start_y), (start_x+1, start_y), (start_x, start_y+1), (start_x+1, start_y+1)]
         return self.seating.areemptyseats(box_coords)
+    
+    def _add_box(self, start_x, start_y, groupid):
+        box_coords = [(start_x, start_y), (start_x+1, start_y), (start_x, start_y+1), (start_x+1, start_y+1)]
+        self.seating.add_many(box_coords, groupid)
         
     def _4_check(self, x, y):
         for start_x in range(x, x-4, -1):
@@ -85,6 +89,12 @@ class BaseSolver:
             if self._check_row(start_x, start_x+3, y):
                 valid_rows.append([(start_x, y), (start_x+1, y), (start_x+2, y)])
         return valid_rows
+
+    def _tryplacegroup(self, group, x, y):
+        if self._group_here_ok(group, x, y):
+            return True
+        else:
+            return False
     
        
 
@@ -135,13 +145,6 @@ class NaiveSolver(BaseSolver):
             
             groupid += 1
 
-            
-    def _tryplacegroup(self, group, x, y):
-        if self._group_here_ok(group, x, y):
-            return True
-        else:
-            return False
-
     def _4_place(self, x, y, groupid):
         for start_x in range(x, x-4, -1):
             if self._check_row(start_x, start_x+4, y):
@@ -154,10 +157,6 @@ class NaiveSolver(BaseSolver):
                 return
         
         raise RuntimeError 
-
-    def _add_box(self, start_x, start_y, groupid):
-        box_coords = [(start_x, start_y), (start_x+1, start_y), (start_x, start_y+1), (start_x+1, start_y+1)]
-        self.seating.add_many(box_coords, groupid)
 
 class PriorityMaxSolver(BaseSolver):
     # Plan is to maintain a score for each possible position
@@ -173,7 +172,7 @@ class PriorityMaxSolver(BaseSolver):
 
         while not self.attendees.check_complete():
             curr = self.attendees.pop_largest()
-            invdist, coords = heappop(self.coordheap)
+            _, coords = self.coordheap.pop()
             failed_seats = set()
             to_push_end = []
             
@@ -185,7 +184,7 @@ class PriorityMaxSolver(BaseSolver):
                     raise RuntimeError
                     # raise an error - no valid placements
                 to_push_end.append((coords))
-                invdist, coords = heappop(self.coordheap)
+                _, coords = self.coordheap.pop()
             
             x, y = coords[0], coords[1]
             if curr == 1:
@@ -207,9 +206,9 @@ class PriorityMaxSolver(BaseSolver):
             groupid += 1
 
     def _heapify_coords(self):
-        coordheap = []
+        coordheap = MaxHeap()
         for coord in self.seating.emptyseatcoords:
-            heappush(coordheap, (0, coord))
+            coordheap.push(0, coord)
         self.coordheap = coordheap
 
     def _update_distmap(self):
@@ -251,11 +250,10 @@ class PriorityMaxSolver(BaseSolver):
         for i in range(len(self.coordheap)):
             coords = self.coordheap[i][1]
             if coords in updates.keys():
-                new_invdist = -1 * updates[coords]
-                self.coordheap[i] = (new_invdist, coords)
-        heapify(self.coordheap)
+                self.coordheap[i] = (updates[coords], coords)
+        self.coordheap.heapify()
 
-        [heappush(self.coordheap, (-1 * self.dist_map[coords[0], coords[1]], coords)) for coords in to_push_end]
+        [self.coordheap.push(self.dist_map[coords[0], coords[1]], coords) for coords in to_push_end]
 
     def _2_best(self, x, y):
         if self.seating.isemptyseat(x+1, y) and not self.seating.isemptyseat(x-1, y):
@@ -302,12 +300,6 @@ class PriorityMaxSolver(BaseSolver):
                 return valid_rows[best_row]
             else:
                 return valid_boxes[best_box]
-
-    def _tryplacegroup(self, group, x, y):
-        if self._group_here_ok(group, x, y):
-            return True
-        else:
-            return False
 
         # group placement: 
         # group of 2: side by side
