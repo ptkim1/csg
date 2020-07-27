@@ -158,26 +158,30 @@ class NaiveSolver(BaseSolver):
         
         raise RuntimeError 
 
-class PriorityMaxSolver(BaseSolver):
+class PrioritySolver(BaseSolver):
     # Plan is to maintain a score for each possible position
     # Based on how far it is to the nearest other person
     # Then take the best scoring position every time. 
     # Starts w/ groups from largest to smallest
     
-    def solve(self):
+    def solve(self, order='descending'):
         # step 1: get the allowed coordinates 
         self._heapify_coords()
         self.dist_map = copy.copy(self.seating.seating) # when placing an additional group member, we'll have to check for if it's a valid seat or not
         groupid = 1
 
         while not self.attendees.check_complete():
-            curr = self.attendees.pop_largest()
+            if order == 'descending':
+                curr = self.attendees.pop_largest()
+            elif order == 'ascending':
+                curr = self.attendees.pop_smallest()
+            elif order == 'random':
+                curr = self.attendees.pop_random()
+
             _, coords = self.coordheap.pop()
             failed_seats = set()
             to_push_end = []
             
-            # I think tryplacegroup is not working as intended
-            # also we need to update the coords that we save to push later in to_push_end
             while not self._tryplacegroup(curr, coords[0], coords[1]):
                 failed_seats.add(coords)
                 if len(failed_seats) == len(self.seating.emptyseatcoords):
@@ -219,11 +223,17 @@ class PriorityMaxSolver(BaseSolver):
         # return a dict of updates to be made to the coordheap
         all_seats = np.where(self.seating.seating != -1)
         all_seats = [(x, y) for x, y in zip(all_seats[0], all_seats[1])]
+        dist_adjusted_seats = np.array(all_seats)
+
+        if 'seatlen' in self.seating.__dict__.keys():
+            dist_adjusted_seats[:, 0] = dist_adjusted_seats[:, 0] * self.seating.seatwidth
+            dist_adjusted_seats[:, 1] = dist_adjusted_seats[:, 1] * self.seating.seatlen
+
+        dmat = squareform(pdist(dist_adjusted_seats))
+
 
         free_seats = np.where(self.seating.seating == 0)
         free_seats = set((x, y) for x, y in zip(free_seats[0], free_seats[1]))
-
-        dmat = squareform(pdist(all_seats))
 
         coordheap_updates = {}
 
@@ -300,15 +310,4 @@ class PriorityMaxSolver(BaseSolver):
                 return valid_rows[best_row]
             else:
                 return valid_boxes[best_box]
-
-        # group placement: 
-        # group of 2: side by side
-        # group of 3: side by side
-        # group of 4: square or row
-        # group of 5: 3-2 or 2-3
-        # group of 6: 3-3 or 4-2 or 2-2-2
-        # group of 7: 3-4 or 4-3 or 2-2-3 or 2-3-2 or 3-2-2
-        # group of 8: 4-4 or 3-3-2 or 3-2-3 or 2-3-3
-        # group of 9: 3-3-3 only!
-        # group of 10: 4-3-3- or 3-4-3 or 3-3-4
 

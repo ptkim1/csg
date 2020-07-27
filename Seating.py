@@ -114,7 +114,21 @@ class BaseSeating:
         if parameters['max_x'] <= 0 or parameters['max_y'] <= 0:
             return False
     
+class LengthWidthSeating(BaseSeating):
+    def __init__(self, totalseats: int, seating: np.ndarray, seatlen, seatwidth):
+        super().__init__(totalseats, seating)
+        self.seatlen = seatlen
+        self.seatwidth = seatwidth
 
+    @classmethod
+    def from_json(cls, name):
+        seating = BaseSeating.from_json(name)
+        inputs = json.load(open('saved/settings/{}'.format(name)))
+        
+        seating.seatlen = inputs['seatlen']
+        seating.seatwidth = inputs['seatwidth']
+
+        return seating
 
 # class SeatingFromTicketMaster
 

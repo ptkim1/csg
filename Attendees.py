@@ -101,6 +101,9 @@ class BaseAttendees:
     def pop_smallest(self):
         return self.groups.pop(0)
 
+    def pop_random(self):
+        return self.groups.pop(np.random.randint(0, len(self.groups)))
+
     def iter_ascending(self):
         groups_ascending = copy.copy(self.groups)
         groups_ascending.sort()

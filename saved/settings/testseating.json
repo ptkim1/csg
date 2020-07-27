@@ -3,5 +3,7 @@
     "emptyrows": [3, 13],
     "emptycols": [4],
     "emptyboxes": [],
-    "gaps": [[5, 5], [7, 14]]
+    "gaps": [[5, 5], [7, 14]],
+    "seatlen": 1,
+    "seatwidth": 1
 }
