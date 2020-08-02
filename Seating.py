@@ -53,6 +53,10 @@ class BaseSeating:
     from_regular_blocks(block_dims, tiling)
         returns a seating that is made up of uniform blocks of seats spaced by 
         aisles at regular intervals
+    
+    display()
+        prints the seating (crude visualization, would have liked to make a
+        better one if I had the time!)
     """
 
     def __init__(self, totalseats: int, seating: np.ndarray):
@@ -181,6 +185,9 @@ class BaseSeating:
         seating[:, yaisles] = -1
 
         return cls(total_seats, seating)
+    
+    def display(self):
+        print(self.seating.T)
     
 class LengthWidthSeating(BaseSeating):
     """

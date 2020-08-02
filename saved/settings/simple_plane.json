@@ -1,0 +1,9 @@
+{
+    "dimensions": [9, 15],
+    "emptyrows": [3, 12],
+    "emptycols": [4],
+    "emptyboxes": [],
+    "gaps": [],
+    "seatlen": 1,
+    "seatwidth": 1
+}
